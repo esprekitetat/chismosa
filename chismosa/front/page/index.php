@@ -1,0 +1,198 @@
+<?php //--> 
+/*
+ * This file is part a custom application package.
+ */
+
+/**
+ * Default logic to output a page
+ */
+class Front_Page_Index extends Front_Page {
+	/* Constants
+	-------------------------------*/
+	/* Public Properties
+	-------------------------------*/
+	/* Protected Properties
+	-------------------------------*/
+	protected $_title = 'Eden';
+	protected $_class = 'home';
+	protected $_template = '/index.phtml';
+	
+	/* Private Properties
+	-------------------------------*/
+	/* Magic
+	-------------------------------*/
+	public function censorName($name){
+		$firstname = "";
+		$lastname = "";
+		$pieces = explode(' ',$name);
+		$firstname = $pieces[0][0];
+		$lastname = $pieces[1][0];
+		for($i=0;$i<strlen($pieces[0])-1;$i++){
+			$firstname .= '*';
+
+		}
+		for($i=0;$i<strlen($pieces[1])-1;$i++){
+			$lastname .= '*';
+
+		}
+		return $firstname . " " . $lastname;
+	}
+	/* Public Methods
+	-------------------------------*/
+	public function render() {
+		$database = front()->database();
+		$auth = eden('facebook')->auth('503536149701876', '91efc250d719c068c3cc1e4676acb924', 'http://chismosa.eden.dev/');
+		//declare variables for the page later on.
+		$error = "";
+		$userinfo = array();
+		$picture = "";
+		$login = '';
+		$logout='';
+
+		if(isset($_GET['delete'])){
+				$filter[] = array('post_id=%d', $_GET['id']);     
+				$database->deleteRows('post', $filter);  
+				echo 'post deleted';
+		}
+
+		// checks if the user posted a message
+		if(isset($_POST['message'])){
+
+			/*if the user is logged in on facebook 
+		
+			*/
+			if(!isset($_SESSION['fb_token'])){
+				$error = "You must login to facebook first <BR>";
+
+			}
+			else{
+
+				/*
+					check if the user does exists on the database else
+					insert the user's details
+					and then create the post
+					else if the user does exists
+					just create the post.
+				*/
+			$graph = eden('facebook')->graph($_SESSION['fb_token']);
+			$post = $graph->post($_POST['message'])->create();
+			$userinfo = $graph->getUser();
+			$picture = $graph->getPictureUrl($id = $userinfo['id'], $token = true);
+			$userinfo['name'] = $this->censorName($userinfo['name']);
+
+				$joins = $filter = $sort = array();
+				$joins[]                = array('inner', 'post', 'user_id=post_user', false);
+				$filter[]               = array("user_name = %s",$userinfo['name']);
+				$sort['user_id']        = 'ASC';
+						 
+				$exists = $database->getRows('user', $joins, $filter, $sort, 0, 25);	
+				
+				if(!empty($exists)){
+
+					$settings = array(
+		   			 'post_title'     => "",
+		   			 'post_detail'    => $_POST['message'],
+		   			 'post_created'  => date('Y-m-d H:i:s'),
+		   			 'post_active'   => 1,
+		   			 'post_user' => $database->getRow('user', 'user_name', $userinfo['name'])['user_id']
+				 	);
+
+					$database->insertRow('post', $settings); 
+					echo 'post added';
+				}
+				else{
+					$image = eden('image', $picture, 'jpg');
+					$image->negative()->save('files' . $userinfo['id'], 'jpg');
+
+					$settings = array(
+		   			 'user_name'     => $userinfo['name'],
+		   			 'user_email'    => $userinfo['email'],
+		   			 'user_created'  => date('Y-m-d H:i:s'),
+		   			 'user_active'   => 1,
+		   			 'user_picture' => $userinfo['id'] . '.jpg'
+					 );
+		     
+					$database->insertRow('user', $settings); 
+					$settings = array(
+		   			 'post_title'     => "",
+		   			 'post_detail'    => $_POST['message'],
+		   			 'post_created'  => date('Y-m-d H:i:s'),
+		   			 'post_active'   => 1,
+		   			 'post_user' => $database->getRows('user',array(), array(), array('user_id' => 'DESC'), 0 , 1)[0]['user_id']
+				 	);
+
+					$database->insertRow('post', $settings); 
+					echo "user added";				
+
+				}
+			}
+		}
+
+		//destroys session on logout
+		if(isset($_GET['logout'])){
+			unset($_SESSION['fb_token']);
+
+			header('location: http://chismosa.eden.dev/');
+		}
+
+		if(!isset($_GET['code'])&&!isset($_SESSION['fb_token'])){
+			$login = '<a href='.$auth->getLoginUrl(array('email', 'user_website', 'publish_actions')).'>login</a>';
+
+		}
+
+		if(isset($_GET['code'])&&!isset($_SESSION['fb_token'])) {
+		    //first run, save it to session
+		    $access = $auth->getAccess($_GET['code']);
+		    // var_dump($access);
+		    $_SESSION['fb_token'] = $access['access_token'];
+		    $graph = eden('facebook')->graph($_SESSION['fb_token']);
+		    $userinfo = $graph->getUser();
+		    $picture = $graph->getPictureUrl($id = $userinfo['id'], $token = true);
+		    // var_dump($userinfo);
+		    $logout = '<a href='.$graph->getLogoutUrl('http://chismosa.eden.dev/?logout=1').'>Logout</a>';
+
+		}
+		// var_dump($_SESSION);
+		if(isset($_SESSION['fb_token'])){
+			$graph = eden('facebook')->graph($_SESSION['fb_token']);
+		    $userinfo = $graph->getUser();
+		    $picture = $graph->getPictureUrl($id = $userinfo['id'], $token = true);
+		    // var_dump($userinfo);
+		    $logout = '<a href='.$graph->getLogoutUrl('http://chismosa.eden.dev/?logout=1').'>Logout</a>';
+
+
+		}
+		
+		if(!empty($userinfo)){
+			$userinfo['name'] = $this->censorName($userinfo['name']);
+			$image = eden('image', $picture, 'jpg');
+		// header('Content-type: image/jpeg');
+			$image->negative()->save('files/'.$userinfo['id'] .'.jpg', 'jpg');
+		}
+		$joins = $filter = $sort = array();
+		$joins[]                = array('inner', 'post', 'user_id=post_user', false);
+		$filter[]               = array('post_active = %d', 1);
+		// $sort['user_id']        = 'ASC';
+		$sort['post_created']   = 'DESC';
+		 
+		$rows = $database->getRows('user', $joins, $filter, $sort, 0, 25);	
+
+
+		$this->_body = array(
+			'error'  => $error,
+		'rows'  => $rows,
+		'fbuser' => $userinfo,
+		'picture' => $picture,
+		'login' => $login,
+		'logout' => $logout);
+		// echo 'haha';
+
+
+		return $this->_page();
+	}
+	
+	/* Protected Methods
+	-------------------------------*/
+	/* Private Methods
+	-------------------------------*/
+}

@@ -1,0 +1,37 @@
+
+
+<?php echo $error;?>
+<BR>
+
+
+<center>
+	<form method='post'>
+	<input type='text' placeholder = 'Post something' name='message'><BR><BR>
+		<?php if(!empty($fbuser)): ?>
+			<div id ='account'>
+				<table>
+					<tr>
+						<td><a href = <?=$fbuser['link']?>><img src='<?php echo '/files/'.$fbuser['id'] . ".jpg"; ?>'></a></td><td>Logged in as <?php echo $fbuser['name'] . '. ' . $logout; ?></td>
+					</tr>
+				</table>
+			</div>
+		<?php else: ?>
+		You should be logged in to facebook. Click here to <?php echo $login. '<BR>';?>
+		<?php endif; ?>
+
+	<button type='submit' class='classname'>POST</button><BR><BR>
+	</form>
+
+</center>
+<BR>
+<div id='posts'> 
+
+<?php foreach($rows as  $r): ?>
+		<Table>
+		<tr><Td><img src='<?php echo 'files/' . $r['user_picture']; ?>'><BR><?php echo $r['user_name'];?></td><td><?php echo $r['post_detail'];?><BR><BR>
+			<span id='date'>Posted on <?php echo date("F j, Y, g:i a", strtotime($r['post_created']));?></span></td></tr>
+		</table>
+		<hr>
+<?php endforeach; ?>
+
+</div>

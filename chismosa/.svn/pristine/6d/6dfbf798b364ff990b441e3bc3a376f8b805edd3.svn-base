@@ -1,0 +1,18 @@
+<?php 
+	
+$auth = eden('facebook')->auth('[FACEBOOK_KEY]', '[FACEBOOK_SECRET]', 'http://yourwebsite.com/auth');
+echo '<a href='.$auth->getLoginUrl().'>LOGIN</a>';
+?>
+
+
+
+<Table border=1> 
+
+<?php foreach($rows as  $r): ?>
+	
+		<tr><Td><?php echo $r['user_name'];?></td><td><?php echo $r['post_title'];?></td></tr>
+		<tr><Td><?php echo $r['user_email'];?></td><td><?php echo $r['post_detail'];?></td></tr>
+		<Tr rowspan=2></tr>
+		<Tr></tr>
+<?php endforeach; ?>
+</table>
